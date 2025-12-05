@@ -1,0 +1,93 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+using namespace std;
+
+int get_neighbour_count(const vector<char>& grid, size_t idx, size_t w) {
+  return
+    (grid[idx - w - 1] == '@') + (grid[idx - w] == '@') + (grid[idx - w + 1] == '@') +
+    (grid[idx - 1]     == '@') +                          (grid[idx + 1]     == '@') +
+    (grid[idx + w - 1] == '@') + (grid[idx + w] == '@') + (grid[idx + w + 1] == '@');
+}
+
+int main() {
+  ifstream input_file("input.txt", ios::ate);
+
+  if (!input_file.is_open()) {
+    cerr << "Error: could not open input.txt. ensure it exists in the same dir" << "\n";
+    return -1;
+  }
+
+  streamsize file_size = input_file.tellg();
+  input_file.seekg(0, ios::beg);
+
+  string buffer(file_size, ' ');
+  if (!input_file.read(&buffer[0], file_size)) return 1;
+
+  size_t line_end = buffer.find('\n');
+  size_t width = (line_end == string::npos) ? buffer.size() : line_end;
+
+  size_t height = 0;
+  for (char c : buffer) if ( c == '\n') ++height;
+  if (buffer.back() != '\n') ++height; /* handle last line if no \n */
+
+  size_t padded_width = width + 2;
+  size_t padded_height = height + 2;
+
+  vector<char> grid(padded_width * padded_height, '.');
+
+  size_t read_pos = 0;
+
+  for (size_t r = 1; r <= height; ++r) {
+    for (size_t c = 1; c <= width; ++c) {
+      while (read_pos < file_size && (buffer[read_pos] == '\r' || buffer[read_pos] == '\n')) {
+        ++read_pos;
+      }
+      if (read_pos < file_size) {
+        grid[r * padded_width + c] = buffer[read_pos++];
+      }
+    }
+  }
+
+  vector<size_t> to_remove;
+
+  for(size_t r = 1; r <= height; ++r) {
+    for(size_t c = 1; c <= width; ++c) {
+      size_t idx = r * padded_width + c;
+      if (grid[idx] == '@' && get_neighbour_count(grid, idx, padded_width) < 4) {
+        to_remove.emplace_back(idx);
+      }
+    }
+  }
+
+  int total_removed_count = 0;
+
+  while (!to_remove.empty()) {
+
+    size_t current_idx = to_remove.back();
+    to_remove.pop_back();
+
+    if (grid[current_idx] != '@') continue;
+
+    grid[current_idx] = '.';
+    ++total_removed_count;
+
+    int offsets[] = {
+      -(int)padded_width - 1, -(int)padded_width, -(int)padded_width + 1,
+      -1,                                         +1,
+      +(int)padded_width - 1, +(int)padded_width, +(int)padded_width + 1
+    };
+
+    for (int o : offsets) {
+      size_t neighbour_idx  = current_idx + o;
+
+      if (grid[neighbour_idx] == '@' && get_neighbour_count(grid, neighbour_idx, padded_width) < 4) {
+        to_remove.emplace_back(neighbour_idx);
+      }
+    }
+  }
+
+  cout << "Total accessible count: " << total_removed_count << "\n";
+  return 0;
+}
